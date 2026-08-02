@@ -30,4 +30,57 @@ test("truth-safe rewrites do not invent numbers", () => {
   assert.ok(rewrite);
   assert.equal(/\d/.test(rewrite.suggested), false);
   assert.ok(rewrite.missingInformation);
+  assert.match(rewrite.suggested, /\[verified/);
+});
+
+test("a skill-list keyword is not treated as demonstrated evidence", () => {
+  const result = analyzeResume({
+    resumeText: `Riya Shah\nriya@example.com\nSKILLS\nReact, TypeScript, Git\nEXPERIENCE\n- Worked on internal tasks.\nEDUCATION\nB.Tech`,
+    targetRole: "Frontend Engineer"
+  });
+  assert.equal(result.skillEvidence.find((item) => item.skill === "react").level, "listed");
+  assert.ok(result.skillDevelopment.some((item) => item.skill === "react" && item.status === "Listed, not proven"));
+});
+
+test("the strongest occurrence of a skill wins over an earlier list mention", () => {
+  const result = analyzeResume({
+    resumeText: `Riya Shah\nriya@example.com | github.com/riya\nSKILLS\nReact, TypeScript\nEXPERIENCE\n- Built a React checkout used by 3 product teams and reduced errors by 20%.\nEDUCATION\nB.Tech`,
+    targetRole: "Frontend Engineer"
+  });
+  const react = result.skillEvidence.find((item) => item.skill === "react");
+  assert.equal(react.level, "demonstrated");
+  assert.match(react.evidence.text, /Built a React checkout/);
+});
+
+test("mandatory job requirements are checked independently and receive a concrete fix", () => {
+  const result = analyzeResume({
+    resumeText: strongResume,
+    targetRole: "Frontend Engineer",
+    jobDescription: "Must have React. Accessibility experience is required. TypeScript is preferred."
+  });
+  const loss = result.losses.find((item) => item.title === "Mandatory job requirements lack proof");
+  assert.ok(loss);
+  assert.match(loss.detail, /Accessibility/i);
+  assert.match(loss.suggestedChange, /Applied accessibility/);
+});
+
+test("every reported loss includes a proposed change", () => {
+  const result = analyzeResume({
+    resumeText: `Sam\nOBJECTIVE\nI am a hard working fast learner with developement experiance.\n- Worked on various projects.\nEDUCATION\nB.Tech`,
+    targetRole: "Software Engineer"
+  });
+  assert.ok(result.losses.length >= 3);
+  assert.ok(result.losses.every((item) => item.suggestedChange?.trim()));
+  assert.ok(result.losses.some((item) => /development experience/i.test(item.suggestedChange)));
+});
+
+test("generic personality claims receive evidence-based replacements", () => {
+  const result = analyzeResume({
+    resumeText: `${strongResume}\n- Team player with excellent communication.`,
+    targetRole: "Software Engineer"
+  });
+  const rewrite = result.rewrites.find((item) => item.original.includes("Team player"));
+  assert.ok(rewrite);
+  assert.match(rewrite.suggested, /Collaborated with \[specific team\/stakeholder\]/);
+  assert.doesNotMatch(rewrite.suggested, /Contributed to team player/i);
 });
