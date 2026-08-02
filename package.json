@@ -1,0 +1,19 @@
+{
+  "name": "hirelens-ai",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["client", "server"],
+  "scripts": {
+    "dev": "concurrently -n API,WEB -c blue,green \"pnpm --filter @hirelens/server dev\" \"pnpm --filter @hirelens/client dev\"",
+    "build": "pnpm --filter @hirelens/client build",
+    "test": "pnpm --filter @hirelens/server test && pnpm --filter @hirelens/client test",
+    "start": "pnpm --filter @hirelens/server start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.12.1"
+}
