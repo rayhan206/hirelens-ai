@@ -4,9 +4,10 @@ import { useAuth } from "./AuthProvider";
 import Brand from "./Brand";
 
 const candidateNav = [
-  ["Overview", LayoutDashboard], ["Resume analysis", FileSearch], ["Job match", BriefcaseBusiness], ["Versions", Columns3]
+  ["Overview", LayoutDashboard, "/candidate/dashboard"], ["Resume analysis", FileSearch, "/candidate/analysis"],
+  ["Suggestions", Sparkles, "/candidate/suggestions"], ["Job match", BriefcaseBusiness, "/candidate/job-match"]
 ];
-const recruiterNav = [["Jobs", BriefcaseBusiness], ["Candidates", Users], ["Pipeline", Columns3], ["Compare", GitCompareArrows]];
+const recruiterNav = [["Jobs", BriefcaseBusiness, "/employer/dashboard"], ["Candidates", Users, "/employer/dashboard"], ["Pipeline", Columns3, "/employer/dashboard"], ["Compare", GitCompareArrows, "/employer/dashboard"]];
 
 export default function AppShell({ role, children, action }) {
   const { user, logout } = useAuth();
@@ -18,7 +19,7 @@ export default function AppShell({ role, children, action }) {
     <aside className="sidebar">
       <Brand />
       <nav aria-label="Primary navigation">
-        {nav.map(([label, Icon], index) => <button className={`nav-item ${index === 0 ? "active" : ""}`} key={label}><Icon /> <span>{label}</span></button>)}
+        {nav.map(([label, Icon, href]) => <button className={`nav-item ${location.pathname === href ? "active" : ""}`} key={label} onClick={() => navigate(href)}><Icon /> <span>{label}</span></button>)}
       </nav>
       <div className="sidebar-spacer" />
       <button className="nav-item"><Settings /> <span>Settings</span></button>
@@ -29,7 +30,7 @@ export default function AppShell({ role, children, action }) {
       <header className="app-header">
         <div className="mobile-brand"><Brand /></div>
         <div className="header-context"><BarChart3 /><span>{role === "candidate" ? "Candidate workspace" : "Recruiter workspace"}</span></div>
-        <div className="header-actions">{action}<div className="avatar">{user?.name?.split(" ").map((part) => part[0]).join("").slice(0, 2)}</div><div className="user-copy"><strong>{user?.name}</strong><span>{user?.role}</span></div></div>
+        <div className="header-actions">{action}<div className="avatar">{user?.name?.split(" ").map((part) => part[0]).join("").slice(0, 2)}</div><div className="user-copy"><strong>{user?.name}</strong><span>{user?.role}</span></div><button className="icon-button header-logout" onClick={handleLogout} aria-label="Log out" title="Log out"><LogOut /></button></div>
       </header>
       {location.search.includes("notice=role") ? <div className="permission-banner">You were redirected to the workspace allowed for your account role.</div> : null}
       {children}

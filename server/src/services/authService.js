@@ -50,7 +50,3 @@ export async function upsertOAuthUser(profile, role = "candidate") {
   users.set(email, user);
   return publicUser(user);
 }
-
-export function getDemoUser(role = "candidate") {
-  return { id: `demo-${role}`, name: role === "employer" ? "Arjun Recruiter" : "Maya Candidate", email: `${role}@demo.hirelens.ai`, role, organisation: role === "employer" ? "HireLens Demo Co." : null, provider: "demo" };
-}

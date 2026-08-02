@@ -1,7 +1,7 @@
 import { Router } from "express";
 import passport from "passport";
 import { z } from "zod";
-import { authenticateUser, getDemoUser, registerUser, signToken } from "../services/authService.js";
+import { authenticateUser, registerUser, signToken } from "../services/authService.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
@@ -27,14 +27,10 @@ router.post("/login", async (req, res) => {
   }
 });
 
-router.post("/demo", (req, res) => {
-  const role = req.body.role === "employer" ? "employer" : "candidate";
-  const user = getDemoUser(role);
-  res.cookie("hirelens_token", signToken(user), cookieOptions).json({ user });
-});
+router.get("/providers", (_req, res) => res.json({ providers: { email: true, google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) } }));
 
 router.get("/google", (req, res, next) => {
-  if (!process.env.GOOGLE_CLIENT_ID) return res.redirect(`${process.env.CLIENT_URL || "http://localhost:5173"}/login?oauth=not-configured`);
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) return res.redirect(`${process.env.CLIENT_URL || "http://localhost:5173"}/login?oauth=setup-required`);
   passport.authenticate("google", { scope: ["profile", "email"], state: req.query.role === "employer" ? "employer" : "candidate" })(req, res, next);
 });
 

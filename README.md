@@ -1,115 +1,113 @@
 # HireLens AI
 
-HireLens AI is a dual-mode resume intelligence project for candidates and recruiters. It combines role-specific rubrics, deterministic NLP-style rules, evidence linking and optional cloud services in a MERN architecture that is realistic for a B.Tech project.
+HireLens AI is a full-stack resume analysis and recruiter decision-support project. It uses a React/Vite client, Express API, optional MongoDB persistence, role-aware scoring rules, and evidence-linked explanations.
 
-The important design choice is that HireLens does **not** produce a mysterious universal ATS score. Every analysis is tied to a target role, seniority and optional job description. Major deductions link to a resume line or a missing requirement, and recruiters retain control over every hiring decision.
+The product never shows a score until a candidate submits a resume. New recruiter accounts also start empty: recruiters create a job, add real candidates, and then review rankings, strengths, gaps, evidence, interview questions, and hiring stages.
 
-## What works
+## Features
 
 ### Candidate workspace
 
-- PDF, DOCX, TXT or pasted-text analysis
-- Role-specific rubrics for software, data/ML, finance/MBA, consulting, marketing/sales, design/creative and research roles
-- ATS structure, requirement match, role relevance, skill evidence, impact, clarity, education and consistency scoring
-- Evidence-linked strengths and “Why you lost marks” explanations
-- Skills classified as missing, listed or demonstrated
-- Truth Lock rewrites that preserve facts and ask for missing metrics
-- Potential-score simulator clearly labelled as a simulation
-- Job-description requirement extraction
+- PDF, DOCX, TXT, or pasted-text resume analysis
+- Rubrics for software, data/ML, finance/MBA, consulting, marketing/sales, design/creative, and research roles
+- ATS structure, requirement match, role relevance, skill evidence, impact, clarity, education, and consistency scoring
+- Exact resume-line evidence for strengths and deductions
+- Separate detailed analysis, suggestions, and job-match pages
+- Truth Lock rewrites that improve wording without inventing facts
+- Skills classified as missing, listed, or demonstrated
 
 ### Recruiter workspace
 
-- Job-specific ranking table with configurable weights
-- Skill filters, search and blind-screening mode
-- Candidate comparison selection and hiring stages
-- Evidence, strengths, gaps, uncertainty and private notes
-- Resume-grounded interview questions
-- Explicit human-control notice; no automated rejection
+- Empty-by-default job and candidate workspace
+- Real job creation and candidate resume upload/paste flow
+- Job-specific ranking with adjustable scoring weights
+- Search, skill filtering, and blind screening
+- New, Screened, Shortlisted, Interview, Selected, and Rejected stages
+- Candidate-specific strengths, weaknesses, evidence, and critical interview questions
+- Human-controlled decisions; no automatic rejection
 
-### Authentication and data
+### Authentication and storage
 
-- Shared JWT authentication with role-based Express middleware and protected React routes
-- Google OAuth 2.0 through Passport when credentials are configured
-- Email registration/login and one-click demo accounts
-- MongoDB-backed users and analyses when `MONGODB_URI` is present
-- Safe in-memory fallback for an immediate local demo
+- Email registration/login with JWT-protected routes
+- Google OAuth 2.0 through Passport when Google credentials are configured
+- MongoDB-backed users, jobs, candidates, and analyses when `MONGODB_URI` is set
+- Temporary in-memory fallback for local development (data resets when the API restarts)
 
-## Architecture
+## Open the project
 
-```text
-React + Vite
-   │ secure cookie / JSON / multipart
-Express API ───── MongoDB (optional locally)
-   ├─ auth + role middleware
-   ├─ PDF/DOCX parsing
-   ├─ role/JD scoring engine
-   └─ recruiter reranking
-```
+Requirements: Node.js 20+ and pnpm 10+.
 
-This intentionally starts with one frontend, one API and one database. A small FastAPI embedding service and BullMQ worker are documented upgrades after the deterministic baseline has a labelled evaluation set; they are not required to run this version.
+In PowerShell:
 
-## Quick start
-
-Requirements: Node.js 20+ and pnpm.
-
-```bash
+```powershell
+cd "C:\Users\ASUS\Desktop\STUDY DOC\PROJECTS\Resume Ranker"
 pnpm install
 Copy-Item .env.example .env
 pnpm dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) and choose either demo account. The API runs on [http://localhost:4000](http://localhost:4000).
+Then open [http://localhost:5173](http://localhost:5173). The API runs at [http://localhost:4000](http://localhost:4000).
 
-The app runs without MongoDB, Google or OpenAI credentials. That is intentional: reviewers can demo the full interaction flow immediately.
+Use `Ctrl+C` in the terminal to stop both servers.
 
 ## Google OAuth setup
 
-1. Create a Web OAuth client in Google Cloud Console.
-2. Add `http://localhost:4000/api/auth/google/callback` as an authorised redirect URI.
-3. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `JWT_SECRET` in `.env`.
-4. Restart `pnpm dev`.
+Google sign-in needs credentials from your own Google Cloud project; there is deliberately no fake OAuth account.
 
-Without credentials, the Google button explains that OAuth is not configured and the demo login remains available.
+1. In Google Cloud Console, create an OAuth 2.0 Web application client.
+2. Add `http://localhost:4000/api/auth/google/callback` as an authorized redirect URI.
+3. Add `http://localhost:5173` as an authorized JavaScript origin.
+4. Put the following values in `.env`:
+
+```dotenv
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+JWT_SECRET=use-a-long-random-secret
+```
+
+5. Restart `pnpm dev`.
+
+When credentials are absent, the login page clearly labels Google sign-in as requiring setup. Email registration/login remains fully functional.
 
 ## MongoDB setup
 
-Set `MONGODB_URI` to a local MongoDB or Atlas connection string. When present, registered users and completed candidate analyses are persisted. Without it, the server uses an in-memory store that resets on restart.
+Set `MONGODB_URI` in `.env` to a local MongoDB or MongoDB Atlas connection string for persistence. Without it, the app still works using an in-memory development store, but accounts and analysis data reset whenever the API restarts.
 
 ## Accuracy approach
 
-The first release favours precision and explainability over an impressive-sounding custom model:
+HireLens prioritizes explainability and reproducibility over an unexplained universal score:
 
-1. Parse document text and preserve line positions.
-2. Detect sections, contact fields, action verbs, metrics and common evidence patterns.
-3. Resolve the target into a role-family rubric.
-4. Extract mandatory, preferred and responsibility statements from a pasted job description.
-5. Score category-level features with documented weights.
-6. Link matched skills and deductions to exact evidence lines.
-7. Return confidence, rubric version and model version for reproducibility.
+1. Parse resume text while preserving line positions.
+2. Detect sections, contact fields, action verbs, metrics, and evidence patterns.
+3. Resolve the target into an industry-specific role-family rubric.
+4. Extract mandatory, preferred, and responsibility statements from the job description.
+5. Score category-level features using documented weights.
+6. Link deductions and matched skills to exact resume evidence.
+7. Return confidence, rubric version, and model version.
 
-The next accuracy upgrade should add sentence-transformer embeddings and a labelled calibration set. Learning-to-rank should only be added after recruiter pairwise feedback exists. Multiple LLMs are deliberately avoided: they add cost and disagreement without improving the transparent baseline. An LLM can later be used only for constrained wording and explanation, never as the source of the numeric score.
+A later research upgrade can add embeddings and a labeled calibration dataset. An LLM should remain constrained to explanations or wording assistance rather than deciding the numeric score.
 
 ## Commands
 
-```bash
-pnpm dev       # frontend + API
-pnpm test      # scoring tests + frontend test runner
-pnpm build     # production frontend build
-pnpm start     # production API
+```powershell
+pnpm dev       # run frontend and API
+pnpm test      # run automated tests
+pnpm build     # build the production frontend
+pnpm start     # run the production API
 ```
 
 ## Project structure
 
 ```text
-client/                 React product UI
-server/src/data/        role rubrics and recruiter demo evidence
-server/src/services/    parsing, scoring and auth logic
+client/                 React application
+server/src/data/        role-specific scoring rubrics
+server/src/services/    parsing, scoring, and authentication logic
 server/src/routes/      protected API routes
 server/src/models/      MongoDB models
 server/test/            deterministic scoring tests
-docs/design/            accepted candidate/recruiter UI concepts
+docs/design/            candidate and recruiter UI concepts
 ```
 
 ## Responsible-use boundary
 
-HireLens is decision support. It excludes protected traits from scoring, supports blind screening and presents uncertainty. A score must never be used as an automatic rejection decision. Production deployment should also add encrypted object storage, retention jobs, audit-log persistence, rate limiting and independent fairness evaluation.
+HireLens is decision support. It excludes protected traits from scoring, supports blind screening, and exposes uncertainty. A score must never be used as an automatic rejection decision. A production deployment should also add encrypted object storage, retention jobs, persistent audit logs, rate limiting, and independent fairness evaluation.

@@ -37,7 +37,7 @@ app.use("/api/recruiter", recruiterRoutes);
 app.use((error, _req, res, _next) => res.status(error.status || 500).json({ message: error.message || "Unexpected server error." }));
 
 if (process.env.MONGODB_URI) {
-  mongoose.connect(process.env.MONGODB_URI).then(() => console.log("MongoDB connected")).catch((error) => console.warn("MongoDB unavailable; using the demo in-memory store:", error.message));
+  mongoose.connect(process.env.MONGODB_URI).then(() => console.log("MongoDB connected")).catch((error) => console.warn("MongoDB unavailable; using the temporary in-memory store:", error.message));
 }
 
 app.listen(port, () => console.log(`HireLens API listening on http://localhost:${port}`));
