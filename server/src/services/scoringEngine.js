@@ -1,4 +1,5 @@
 import { ROLE_RUBRICS, resolveRole } from "../data/roleRubrics.js";
+import { buildLearningRoadmap } from "./learningRoadmap.js";
 
 const SECTION_PATTERN = /^(summary|objective|experience|work experience|employment|projects?|skills?|education|certifications?|publications?|research|portfolio|achievements?|leadership)\s*:?\s*$/i;
 const CONTACT = {
@@ -9,7 +10,7 @@ const CONTACT = {
 const BULLET = /^(?:[-*•]|\d+[.)])\s+/;
 const METRIC = /(?:\b\d+(?:\.\d+)?%|[$₹€£]\s?[\d,.]+|\b\d+(?:\.\d+)?\s?[kKmMbB]\+?\b|\b\d+\s+(?:users?|clients?|projects?|months?|years?|records?|people|members?|requests?|transactions?|campaigns?|markets?|countries?|teams?|hours?|days?|weeks?|test cases?|participants?|respondents?)\b|\b\d+(?:\.\d+)?x\b)/i;
 const OUTCOME = /\b(increased|grew|reduced|saved|improved|accelerated|raised|lowered|generated|delivered|achieved|resulted|enabled|prevented|converted|reached|accuracy|revenue|cost|latency|uptime|adoption|conversion|retention|efficiency|quality)\b/i;
-const WEAK_OPENINGS = /^(worked on|responsible for|helped with|assisted with|involved in|participated in|did|handled)\b/i;
+const WEAK_OPENINGS = /^(worked on|worked with|worked using|responsible for|helped with|assisted with|involved in|participated in|did|handled)\b/i;
 const ACTION_VERBS = /\b(built|created|designed|developed|implemented|led|launched|improved|optimized|optimised|analysed|analyzed|managed|delivered|increased|reduced|deployed|researched|published|trained|evaluated|audited|forecasted|shipped|automated|integrated|migrated|architected|tested|conducted|validated|modeled|modelled|presented|authored|generated|grew|converted|facilitated|advised|reconciled|prototyped|illustrated|directed|owned|coordinated|supported|contributed)\b/i;
 const VAGUE_CLAIMS = /\b(hard[- ]working|team player|go[- ]getter|passionate|results[- ]oriented|excellent communication|fast learner|dynamic professional|responsible for various|worked on various)\b/i;
 const FIRST_PERSON = /\b(i|me|my|mine|we|our)\b/i;
@@ -19,7 +20,7 @@ const COMMON_TYPOS = new Map([
   ["responsibile", "responsible"], ["acheived", "achieved"], ["succesfully", "successfully"],
   ["seperate", "separate"], ["enviroment", "environment"], ["maintainance", "maintenance"]
 ]);
-const STOP_WORDS = new Set("about after also and are been being build building can candidate company design experience for from have into interfaces must need preferred required role team that the their they this through user using will with work years your".split(" "));
+const STOP_WORDS = new Set("about after also and are been being build building can candidate company data design experience for from have into interfaces must need preferred required role team that the their they this through user using will with work years your".split(" "));
 const SKILL_ALIASES = {
   javascript: ["javascript", "js", "ecmascript"], typescript: ["typescript", "ts"], react: ["react", "react.js", "reactjs"],
   node: ["node", "node.js", "nodejs"], api: ["api", "rest", "graphql"], database: ["database", "postgresql", "mysql", "mongodb", "sql server"],
@@ -38,6 +39,15 @@ const OUTCOME_TEMPLATES = {
   marketing: "across [verified audience/leads/campaign scope], changing [verified conversion, revenue, or engagement metric]",
   design: "validated with [verified number/type of users], improving [verified usability, accessibility, or adoption outcome]",
   research: "using [verified sample/dataset size], producing [verified finding, publication, or research outcome]"
+};
+const NO_ACTION_TEMPLATES = {
+  software: (text) => `Built [specific feature or system] using ${text}, improving [verified quality, speed, reliability, or delivery outcome]`,
+  data: (text) => `Analyzed [specific dataset or business problem] using ${text}, producing [verified insight, model, or decision]`,
+  finance: (text) => `Evaluated [specific financial question] using ${text}, informing [verified decision, saving, or risk outcome]`,
+  consulting: (text) => `Analyzed [specific client or business problem] using ${text}, leading to [verified recommendation or operational outcome]`,
+  marketing: (text) => `Applied ${text} to [specific campaign or funnel problem], changing [verified conversion, revenue, or engagement metric]`,
+  design: (text) => `Applied ${text} to [specific user problem], validated with [verified users or usability evidence]`,
+  research: (text) => `Applied ${text} to [specific research question], producing [verified finding, publication, or research outcome]`
 };
 
 const clamp = (value) => Math.max(0, Math.min(100, Math.round(value)));
@@ -106,15 +116,24 @@ function evaluateRequirements(requirements, cleanText, rubric) {
   });
 }
 
-function improveOpening(original) {
+function improveOpening(original, roleKey) {
+  const cleaned = original.replace(/\s+/g, " ").replace(/\b(?:and|for|to|with)\s*$/i, "").replace(/[.;]$/, "").trim();
+  const dataTools = cleaned.match(/^worked with tools and libraries including (.+?)\s+for data analysis$/i);
+  if (dataTools) return `Analyzed [specific dataset or business problem] using ${dataTools[1]}, producing [verified insight, model, or decision]`;
+  const workedWith = cleaned.match(/^worked with (.+)$/i);
+  if (workedWith) return `Applied ${workedWith[1]} to [specific task or problem], resulting in [verified outcome]`;
+  const workedUsing = cleaned.match(/^worked using (.+)$/i);
+  if (workedUsing) return `Applied ${workedUsing[1]} to [specific task or problem], resulting in [verified outcome]`;
+  const workedOn = cleaned.match(/^worked on (.+)$/i);
+  if (workedOn) return `Improved [specific part of] ${workedOn[1]} through [verified action], resulting in [verified outcome]`;
   const replacements = {
-    "worked on": "Contributed to", "responsible for": "Managed", "helped with": "Supported",
+    "responsible for": "Managed", "helped with": "Supported",
     "assisted with": "Supported", "involved in": "Contributed to", "participated in": "Contributed to",
     did: "Completed", handled: "Managed"
   };
-  if (WEAK_OPENINGS.test(original)) return original.replace(WEAK_OPENINGS, (match) => replacements[match.toLowerCase()] || "Contributed to");
-  if (!ACTION_VERBS.test(original.split(/[,;]/)[0])) return `Contributed to ${original.charAt(0).toLowerCase()}${original.slice(1)}`;
-  return original;
+  if (WEAK_OPENINGS.test(cleaned)) return cleaned.replace(WEAK_OPENINGS, (match) => replacements[match.toLowerCase()] || "Supported");
+  if (!ACTION_VERBS.test(cleaned.split(/[,;]/)[0])) return (NO_ACTION_TEMPLATES[roleKey] || NO_ACTION_TEMPLATES.software)(cleaned);
+  return cleaned;
 }
 
 function correctTypos(text) {
@@ -131,9 +150,10 @@ function buildRewrite(entry, roleKey, reasons = [], targetRole = "target-role pr
       : `${targetRole} with verified experience in [capability 1] and [capability 2], demonstrated through [specific project or result].`;
     return { line: entry.line, original, suggested, reason: "Replaces an unverifiable personality claim with evidence the reader can assess.", missingInformation: "Fill the brackets with one real situation and a result you can explain in an interview.", requiresFacts: true };
   }
-  let suggested = correctTypos(improveOpening(original)).replace(/[.;]$/, "");
+  let suggested = correctTypos(improveOpening(original, roleKey)).replace(/[.;]$/, "");
+  const hasGuidedTemplate = /\[[^\]]+\]/.test(suggested);
   const needsFacts = !METRIC.test(suggested) || !OUTCOME.test(suggested);
-  if (needsFacts) suggested = `${suggested}, ${OUTCOME_TEMPLATES[roleKey]}.`;
+  if (needsFacts && !hasGuidedTemplate) suggested = `${suggested}, ${OUTCOME_TEMPLATES[roleKey]}.`;
   else suggested = `${suggested}.`;
   return {
     line: entry.line,
@@ -249,6 +269,7 @@ export function analyzeResume({ resumeText, targetRole = "Software Engineer", se
     ...listed.map((item) => ({ skill: item.skill, status: "Listed, not proven", priority: "High", why: `The resume names ${item.skill}, but no experience/project bullet shows how it was used.`, nextStep: `Build or document one real task using ${item.skill}; be ready to explain the decision, difficulty, and result.`, resumeChange: `“Built [specific deliverable] using ${item.skill}, ${OUTCOME_TEMPLATES[roleKey]}.”` })),
     ...missing.map((item) => ({ skill: item.skill, status: "Missing role signal", priority: "Medium", why: `${item.skill} is common in the ${rubric.label} rubric but is absent from the resume.`, nextStep: `Check real target job descriptions before investing time; then build one portfolio-sized example if the skill is repeatedly required.`, resumeChange: `“Created [specific deliverable] using ${item.skill}, ${OUTCOME_TEMPLATES[roleKey]}.”` }))
   ].filter((item, index, rows) => rows.findIndex((other) => other.skill === item.skill) === index).slice(0, 6);
+  const roadmap = buildLearningRoadmap({ skillDevelopment, roleKey, targetRole });
 
   const simulation = [
     { id: "impact", label: "Add verified scale or outcomes", gain: Math.min(8, Math.max(2, Math.round((78 - impact) * .12))) },
@@ -258,9 +279,9 @@ export function analyzeResume({ resumeText, targetRole = "Software Engineer", se
 
   return {
     score, confidence, confidenceValue, role: { key: roleKey, label: rubric.label, targetRole, seniority },
-    categories, strengths, losses: losses.sort((a, b) => b.points - a.points).slice(0, 9), skillEvidence, skillDevelopment, rewrites, simulation,
+    categories, strengths, losses: losses.sort((a, b) => b.points - a.points).slice(0, 9), skillEvidence, skillDevelopment, roadmap, rewrites, simulation,
     job: { ...jd, requirements: { mandatory: mandatoryRequirements, preferred: preferredRequirements }, matchedTerms: demonstrated.map((item) => item.skill).slice(0, 14), missingRoleTerms: missing.map((item) => item.skill).slice(0, 8) },
     resume: { wordCount, lines: sectionLines, sections: uniq(sectionLines.map((entry) => entry.section)), parseWarnings: parseability < 82 ? ["Use standard section headings, complete contact details, and avoid text-box-only content."] : [] },
-    metadata: { modelVersion: "rules-2.0", rubricVersion: `role-${roleKey}-2.0`, generatedAt: new Date().toISOString(), decisionSupportOnly: true }
+    metadata: { modelVersion: "rules-2.1", rubricVersion: `role-${roleKey}-2.1`, generatedAt: new Date().toISOString(), decisionSupportOnly: true }
   };
 }

@@ -1,11 +1,12 @@
-import { BarChart3, BriefcaseBusiness, Columns3, FileSearch, GitCompareArrows, LayoutDashboard, LogOut, Settings, Sparkles, Users } from "lucide-react";
+import { BarChart3, BriefcaseBusiness, Columns3, FileSearch, GitCompareArrows, LayoutDashboard, LogOut, Map, Settings, Sparkles, Users } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import Brand from "./Brand";
 
 const candidateNav = [
   ["Overview", LayoutDashboard, "/candidate/dashboard"], ["Resume analysis", FileSearch, "/candidate/analysis"],
-  ["Suggestions", Sparkles, "/candidate/suggestions"], ["Job match", BriefcaseBusiness, "/candidate/job-match"]
+  ["Suggestions", Sparkles, "/candidate/suggestions"], ["Job match", BriefcaseBusiness, "/candidate/job-match"],
+  ["Roadmap", Map, "/candidate/roadmap"]
 ];
 const recruiterNav = [["Jobs", BriefcaseBusiness, "/employer/dashboard"], ["Candidates", Users, "/employer/dashboard"], ["Pipeline", Columns3, "/employer/dashboard"], ["Compare", GitCompareArrows, "/employer/dashboard"]];
 

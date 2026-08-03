@@ -22,7 +22,7 @@ export default function CandidateSuggestionsPage() {
         </div></article>)}
       </section>
 
-      <section className="skill-plan"><header><Target /><div><h2>Skill development plan</h2><p>Prioritized by job requirements, demonstrated evidence, and the selected role.</p></div></header>
+      <section className="skill-plan"><header><Target /><div><h2>Skill development plan</h2><p>Prioritized by job requirements, demonstrated evidence, and the selected role.</p></div><Link className="button button-secondary roadmap-link" to="/candidate/roadmap">Open roadmap</Link></header>
         <div>{(analysis.skillDevelopment || []).map((item) => <article key={item.skill}>
           <div><span className={`priority priority-${item.priority.toLowerCase()}`}>{item.priority}</span><h3>{item.skill}</h3><small>{item.status}</small></div>
           <p>{item.why}</p><p><strong>How to improve:</strong> {item.nextStep}</p>

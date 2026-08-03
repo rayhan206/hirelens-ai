@@ -84,3 +84,40 @@ test("generic personality claims receive evidence-based replacements", () => {
   assert.match(rewrite.suggested, /Collaborated with \[specific team\/stakeholder\]/);
   assert.doesNotMatch(rewrite.suggested, /Contributed to team player/i);
 });
+
+test("worked-with data bullets become grammatical role-specific rewrites", () => {
+  const result = analyzeResume({
+    resumeText: `Asha Mehta\nasha@example.com\nSKILLS\nPandas, NumPy, SciPy, SQL, MongoDB\nEXPERIENCE\n- Worked with tools and libraries including Pandas, NumPy, SciPy, SQL, and MongoDB for data analysis and\nEDUCATION\nB.Tech`,
+    targetRole: "Data Analyst"
+  });
+  const rewrite = result.rewrites.find((item) => item.original.startsWith("Worked with tools"));
+  assert.ok(rewrite);
+  assert.match(rewrite.suggested, /^Analyzed \[specific dataset or business problem\] using Pandas/);
+  assert.doesNotMatch(rewrite.suggested, /Contributed to worked/i);
+  assert.doesNotMatch(rewrite.suggested, /analysis and,/i);
+});
+
+test("analysis includes an ordered learning roadmap from real skill gaps", () => {
+  const result = analyzeResume({
+    resumeText: `Riya Shah\nriya@example.com\nSKILLS\nReact, TypeScript\nEXPERIENCE\n- Worked on checkout workflows.\nEDUCATION\nB.Tech`,
+    targetRole: "Frontend Engineer",
+    jobDescription: "React is required. Accessibility experience is required."
+  });
+  assert.equal(result.roadmap.targetRole, "Frontend Engineer");
+  assert.ok(result.roadmap.totalSteps >= 4);
+  assert.deepEqual(result.roadmap.phases.map((phase) => phase.title), ["Foundations", "Build proof", "Interview readiness"]);
+  assert.equal(result.roadmap.phases[0].steps[0].skill, "accessibility");
+  assert.match(result.roadmap.phases[0].steps[0].learnTask, /WCAG/);
+});
+
+test("roadmap requirement signals exclude generic fragments", () => {
+  const result = analyzeResume({
+    resumeText: `Asha\nasha@example.com\nSKILLS\nSQL\nEXPERIENCE\n- Built reports for operations.\nEDUCATION\nB.Tech`,
+    targetRole: "Data Analyst",
+    jobDescription: "Python and data visualization are required. SQL is preferred."
+  });
+  const roadmapSkills = result.roadmap.phases.flatMap((phase) => phase.steps.map((step) => step.skill));
+  assert.ok(roadmapSkills.includes("python"));
+  assert.ok(roadmapSkills.includes("visualization"));
+  assert.ok(!roadmapSkills.includes("data"));
+});
